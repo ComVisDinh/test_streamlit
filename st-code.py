@@ -1,7 +1,10 @@
 import streamlit as st
 from code_editor import code_editor
 import subprocess
-import numpy as np
+import os
+
+# install numpy
+os.system("pip install numpy")
 
 custom_btns = [{
                 "name": "Copy",
@@ -85,8 +88,7 @@ with st.sidebar:
     st.markdown("4. Kết quả sẽ hiển thị ở ô bên dưới")
     st.markdown("5. Bạn có thể tải file Python bằng cách nhấn vào nút **Save file**")
     
-    file_name = st.text_input("Tên file:", "st-test.py")
-    
+    file_name = st.text_input("Tên file:", "st-test.py")   
 
 # Đặt tên file
 col_1, col_2, col_3 = st.columns([0.2, 0.5, 0.4])
@@ -95,35 +97,37 @@ with col_2:
 with col_3:
     st.image("shark.png", width=150)
 
-response_dict = code_editor("", buttons=custom_btns, height=[10, 30], info=info_bar)
+sample_code = """#Bạn viết code ở đây nhé!\nprint("AI VIET NAM XIN CHÀO!")"""
+response_dict = code_editor(sample_code, buttons=custom_btns, height=[10, 30], info=info_bar)
+codes = response_dict["text"]
+# Ngăn chặn việc thực thi mã nguy hiểm
+black_list = ["os", "sys", "subprocess", "shutil", "importlib"]  
 
-codes = response_dict["text"]   
+def check_code(codes):
+    for line in codes.split('\n'):
+        if 'import' in line:
+            if any([True for x in black_list if x in line]):
+                return False
+   
+    return True
 
-# ========================= verify ======================
-is_execute = True
-for line in codes.split('\n'):
-    if 'import' in line:
-        if 'os' in line:
-            is_execute = False
-
-
-def write_code(code):
+def write_code(codes):
     # save code to file
-    with open(file_name, "w") as f:
+    with open(file_name, "w", encoding='utf-8') as f:
         f.write(codes)
-        
+    
 # run code
-if is_execute == True:
+if check_code(codes):     
     if response_dict["type"] == "submit":
-        st.snow()
+        # Lưu mã vào file Python
         write_code(codes)
-        
         # Hiển thị button đownload file
         st.download_button(
             label="Save file",
             data=open(file_name, 'rb').read(),
             file_name= file_name,
             mime="text/plain")
+        
         # Thực thi file Python và lấy đầu ra và lỗi (nếu có)
         result = subprocess.run(['python', file_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
@@ -131,8 +135,6 @@ if is_execute == True:
         st.text_area("Output", result.stdout)
         if result.stderr:
             st.text_area("Error", result.stderr)
-
 else:
-    st.text_area("Output", "warning: os is not supported")
-
+    st.error("Mã của bạn có thể nguy hiểm, vui lòng kiểm tra lại!")
     
